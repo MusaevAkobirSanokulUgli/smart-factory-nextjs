@@ -1,0 +1,2 @@
+# ONNX model files — tracked via Git LFS or committed directly
+*.onnx filter=lfs diff=lfs merge=lfs -text

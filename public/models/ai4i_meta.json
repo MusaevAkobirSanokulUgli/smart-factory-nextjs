@@ -1,0 +1,25 @@
+{
+  "feature_columns": [
+    "air_temp_k",
+    "process_temp_k",
+    "rotational_speed_rpm",
+    "torque_nm",
+    "tool_wear_min",
+    "Type_L",
+    "Type_M",
+    "temp_diff",
+    "power_w",
+    "torque_x_wear",
+    "rpm_x_wear",
+    "power_x_wear",
+    "overstrain_score",
+    "heat_diss_flag",
+    "power_oor"
+  ],
+  "ensemble_threshold": 0.9718,
+  "class_labels": [
+    "OK",
+    "Failure"
+  ],
+  "n_features": 15
+}
