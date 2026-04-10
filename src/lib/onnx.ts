@@ -1,44 +1,51 @@
 import * as ort from "onnxruntime-web";
 
-// Point WASM files to CDN (set once, before any session creation)
+// ──────────────────────────────────────────────────────────────
+// WASM backend configuration — set ONCE, before any session.
+// proxy=false  → avoids the Web Worker that triggers "already started"
+// numThreads=1 → prevents multi-thread init race
+// ──────────────────────────────────────────────────────────────
+ort.env.wasm.proxy = false;
+ort.env.wasm.numThreads = 1;
 ort.env.wasm.wasmPaths =
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/";
-ort.env.wasm.numThreads = 1;
 
-const sessionCache = new Map<string, ort.InferenceSession>();
+// Cache of fully-resolved sessions
+const cache = new Map<string, ort.InferenceSession>();
 
-// Serialize all session creation through a single queue to prevent
-// the "Session already started" race condition in onnxruntime-web.
-let queue: Promise<void> = Promise.resolve();
+// Global sequential lock — guarantees only ONE InferenceSession.create()
+// runs at any given moment, which prevents the WASM runtime from being
+// double-initialized.
+let initLock: Promise<void> = Promise.resolve();
 
 export async function loadSession(
   modelPath: string
 ): Promise<ort.InferenceSession> {
-  const cached = sessionCache.get(modelPath);
-  if (cached) return cached;
+  // Fast path: already loaded
+  const hit = cache.get(modelPath);
+  if (hit) return hit;
 
-  // Chain onto the queue so only one session initializes at a time
-  const result = new Promise<ort.InferenceSession>((resolve, reject) => {
-    queue = queue.then(async () => {
-      // Double-check cache (another caller may have loaded it while we waited)
-      const cached2 = sessionCache.get(modelPath);
-      if (cached2) {
-        resolve(cached2);
-        return;
-      }
-      try {
+  // Acquire the lock by chaining a new step onto the promise queue
+  return new Promise<ort.InferenceSession>((resolve, reject) => {
+    initLock = initLock
+      .then(async () => {
+        // Re-check cache (might have been loaded while we waited)
+        const hit2 = cache.get(modelPath);
+        if (hit2) {
+          resolve(hit2);
+          return;
+        }
+
         const session = await ort.InferenceSession.create(modelPath, {
           executionProviders: ["wasm"],
         });
-        sessionCache.set(modelPath, session);
+        cache.set(modelPath, session);
         resolve(session);
-      } catch (err) {
+      })
+      .catch((err) => {
         reject(err);
-      }
-    });
+      });
   });
-
-  return result;
 }
 
 export { ort };

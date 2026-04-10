@@ -140,26 +140,21 @@ export default function SECOMCard() {
         features.length,
       ]);
 
-      // Run all 4 models in parallel
-      const sessions = await Promise.all(
-        SECOM_MODELS.map((m) => loadSession(m.path))
-      );
-
-      const results = await Promise.all(
-        sessions.map((sess) => sess.run({ features: inputTensor }))
-      );
-
-      const modelProbs = results.map((res) => {
+      // Load and run all 4 models sequentially (WASM single-thread)
+      const modelProbs: number[] = [];
+      for (const m of SECOM_MODELS) {
+        const sess = await loadSession(m.path);
+        const res = await sess.run({ features: inputTensor });
         const keys = Object.keys(res);
         const probKey =
           keys.find((k) => k.toLowerCase().includes("prob")) ??
           keys[1] ??
           keys[0];
-        return extractProb1(res[probKey]);
-      });
+        modelProbs.push(extractProb1(res[probKey]));
+      }
 
-      const ens =
-        modelProbs.reduce((a, b) => a + b, 0) / modelProbs.length;
+      const ens: number =
+        modelProbs.reduce((a: number, b: number) => a + b, 0) / modelProbs.length;
 
       setProbs(modelProbs);
       setEnsProb(ens);

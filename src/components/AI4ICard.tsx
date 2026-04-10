@@ -123,15 +123,13 @@ export default function AI4ICard() {
       const features = engineerFeatures(input);
       const inputTensor = new ort.Tensor("float32", features, [1, 15]);
 
-      const [xgbSession, lgbSession] = await Promise.all([
-        loadSession(XGB_PATH),
-        loadSession(LGB_PATH),
-      ]);
+      // Load sessions sequentially to avoid WASM "already started" race
+      const xgbSession = await loadSession(XGB_PATH);
+      const lgbSession = await loadSession(LGB_PATH);
 
-      const [xgbResult, lgbResult] = await Promise.all([
-        xgbSession.run({ features: inputTensor }),
-        lgbSession.run({ features: inputTensor }),
-      ]);
+      // Run inference sequentially (WASM single-thread)
+      const xgbResult = await xgbSession.run({ features: inputTensor });
+      const lgbResult = await lgbSession.run({ features: inputTensor });
 
       // Try common output key names
       const getProb = (results: Record<string, ort.OnnxValue>): number => {
