@@ -129,8 +129,8 @@ export default function AI4ICard() {
       ]);
 
       const [xgbResult, lgbResult] = await Promise.all([
-        xgbSession.run({ X: inputTensor }),
-        lgbSession.run({ X: inputTensor }),
+        xgbSession.run({ features: inputTensor }),
+        lgbSession.run({ features: inputTensor }),
       ]);
 
       // Try common output key names

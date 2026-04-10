@@ -146,7 +146,7 @@ export default function SECOMCard() {
       );
 
       const results = await Promise.all(
-        sessions.map((sess) => sess.run({ X: inputTensor }))
+        sessions.map((sess) => sess.run({ features: inputTensor }))
       );
 
       const modelProbs = results.map((res) => {
